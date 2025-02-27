@@ -16,7 +16,6 @@ read_docs <- function(user_prompt) {
 
 
 read_html_docs <- function(pkg_ref, topic_name) {
-  check_installed("rvest")
   # This should output a scalar character
   file_location <- utils::help(topic = (topic_name), package = (pkg_ref), help_type = "html") |>
     as.character()
@@ -31,11 +30,8 @@ read_html_docs <- function(pkg_ref, topic_name) {
     get_help_file_path() |>
     lazyLoad(envir = env)
 
-  env[[topic_name]] |>
-    tools::Rd2HTML() |>
-    utils::capture.output() |>
-    paste0(collapse = "\n") |>
-    rvest::read_html()
+  # Return the raw HTML string directly
+  env[[topic_name]]
 }
 
 get_help_file_path <- function(file) {
@@ -52,61 +48,36 @@ get_help_file_path <- function(file) {
 
 
 docs_get_inner_text <- function(x) {
-  check_installed("rvest")
   if (is.null(x)) {
     return(NULL)
   }
-
-  main_container <- x |>
-    rvest::html_element("body") |>
-    rvest::html_element(".container")
-
-  title <- main_container |>
-    rvest::html_element("h2") |>
-    rvest::html_text()
-
-  sections <- main_container |>
-    rvest::html_children() |>
-    docs_get_sections()
-
+  
+  # Extract title - looking for content between <h2> tags
+  title <- stringr::str_match(x, "<h2>(.*?)</h2>")[1, 2]
+  
+  # Extract sections using regex
+  get_section <- function(section_name) {
+    pattern <- paste0("<h3>", section_name, "</h3>\\s*(.*?)(?=<h3>|</main>)")
+    match <- stringr::str_match(x, pattern)
+    if (!is.na(match[1, 2])) {
+      # Clean up the HTML tags
+      content <- match[1, 2]
+      content <- stringr::str_remove_all(content, "<.*?>")
+      content <- stringr::str_trim(content)
+      return(content)
+    }
+    return(NULL)
+  }
+  
   list(
-    title = title, # all
-    description = sections[["Description"]], # all
-    usage = sections[["Usage"]], # all
-    arguments = sections[["Arguments"]], # only functions
-    format = sections[["Format"]], # only data
-    value = sections[["Value"]], # only functions
-    examples = sections[["Examples"]] # only functions
+    title = title,
+    description = get_section("Description"),
+    usage = get_section("Usage"),
+    arguments = get_section("Arguments"),
+    format = get_section("Format"),
+    value = get_section("Value"),
+    examples = get_section("Examples")
   )
-}
-
-docs_get_sections <- function(children) {
-  check_installed("rvest")
-  h3_locations <- children |>
-    purrr::map_lgl(~ rvest::html_name(.x) == "h3") |>
-    which()
-
-  inner_texts <- children |>
-    purrr::map_chr(rvest::html_text2)
-
-  section_ranges <- h3_locations |>
-    purrr::imap(function(.x, i) {
-      begin <- h3_locations[i] + 1
-      end <- integer()
-      item_is_the_last_h3 <- i == length(h3_locations)
-
-      if (item_is_the_last_h3) {
-        end <- length(children)
-      } else {
-        end <- h3_locations[i + 1] - 1
-      }
-
-      list(begin = begin, end = end)
-    })
-
-  section_ranges |>
-    purrr::map(~ inner_texts[.x$begin:.x$end] |> paste0(collapse = "\n\n")) |> # nolint
-    purrr::set_names(inner_texts[h3_locations])
 }
 
 locate_double_colon_calls <- function(x) {
