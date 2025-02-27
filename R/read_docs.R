@@ -30,8 +30,16 @@ read_html_docs <- function(pkg_ref, topic_name) {
     get_help_file_path() |>
     lazyLoad(envir = env)
 
-  # Return the raw HTML string directly
-  env[[topic_name]]
+  # Convert Rd object to plain text
+  rd_obj <- env[[topic_name]]
+  if (inherits(rd_obj, "Rd")) {
+    con <- textConnection("txt_output", "w")
+    tools::Rd2txt(rd_obj, con)
+    close(con)
+    return(paste(txt_output, collapse = "\n"))
+  } else {
+    return(as.character(rd_obj))
+  }
 }
 
 get_help_file_path <- function(file) {
@@ -52,17 +60,16 @@ docs_get_inner_text <- function(x) {
     return(NULL)
   }
   
-  # Extract title - looking for content between <h2> tags
-  title <- stringr::str_match(x, "<h2>(.*?)</h2>")[1, 2]
+  # Extract title - first line after the "R Documentation" line
+  title_pattern <- ".*R Documentation\n\n(.*?)\n"
+  title <- stringr::str_match(x, title_pattern)[1, 2]
   
   # Extract sections using regex
   get_section <- function(section_name) {
-    pattern <- paste0("<h3>", section_name, "</h3>\\s*(.*?)(?=<h3>|</main>)")
+    pattern <- paste0(section_name, "\n\n(.*?)(?=\n\n[A-Z][a-z]+\n\n|$)")
     match <- stringr::str_match(x, pattern)
     if (!is.na(match[1, 2])) {
-      # Clean up the HTML tags
       content <- match[1, 2]
-      content <- stringr::str_remove_all(content, "<.*?>")
       content <- stringr::str_trim(content)
       return(content)
     }
