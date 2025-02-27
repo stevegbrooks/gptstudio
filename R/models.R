@@ -46,6 +46,16 @@ list_available_models.openai <- function(service) {
     models <- models |>
       stringr::str_subset("instruct", negate = TRUE) |>
       stringr::str_subset("vision", negate = TRUE) |>
+      stringr::str_subset("image", negate = TRUE) |>
+      stringr::str_subset("audio", negate = TRUE) |>
+      stringr::str_subset("mock", negate = TRUE) |>
+      stringr::str_subset("test", negate = TRUE) |>
+      stringr::str_subset("tts", negate = TRUE) |>
+      stringr::str_subset("whisper", negate = TRUE) |>
+      stringr::str_subset("embed", negate = TRUE) |>
+      stringr::str_subset("dall", negate = TRUE) |>
+      stringr::str_subset("text", negate = TRUE) |>
+      stringr::str_subset("rerank", negate = TRUE)
       sort()
   }
   return(models)
