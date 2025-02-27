@@ -34,9 +34,13 @@ read_html_docs <- function(pkg_ref, topic_name) {
   rd_obj <- env[[topic_name]]
   if (inherits(rd_obj, "Rd")) {
     con <- textConnection("txt_output", "w")
-    tools::Rd2txt(rd_obj, con)
+    tools::Rd2txt(rd_obj, con, outputEncoding = "UTF-8")
     close(con)
-    return(paste(txt_output, collapse = "\n"))
+    # Clean the output by removing control characters
+    cleaned_text <- paste(txt_output, collapse = "\n") |>
+      stringr::str_replace_all("_\\\\b", "") |>  # Remove "_\b" sequences
+      stringr::str_replace_all("\\\\b", "")      # Remove any remaining "\b"
+    return(cleaned_text)
   } else {
     return(as.character(rd_obj))
   }
@@ -60,13 +64,17 @@ docs_get_inner_text <- function(x) {
     return(NULL)
   }
   
-  # Extract title - first line after the "R Documentation" line
-  title_pattern <- ".*R Documentation\n\n(.*?)\n"
+  # Clean up text and normalize line endings
+  x <- stringr::str_replace_all(x, "\r\n", "\n")
+  
+  # Extract title - the first line that's not Description/Usage etc.
+  title_pattern <- "^(.*?)\\n+[A-Z][a-z]+:"
   title <- stringr::str_match(x, title_pattern)[1, 2]
+  title <- stringr::str_trim(title)
   
   # Extract sections using regex
   get_section <- function(section_name) {
-    pattern <- paste0(section_name, "\n\n(.*?)(?=\n\n[A-Z][a-z]+\n\n|$)")
+    pattern <- paste0(section_name, ":\\s*\\n+(.*?)(?=\\n+[A-Z][a-z]+:|$)")
     match <- stringr::str_match(x, pattern)
     if (!is.na(match[1, 2])) {
       content <- match[1, 2]
