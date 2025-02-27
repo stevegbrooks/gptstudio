@@ -55,7 +55,7 @@ list_available_models.openai <- function(service) {
       stringr::str_subset("embed", negate = TRUE) |>
       stringr::str_subset("dall", negate = TRUE) |>
       stringr::str_subset("text", negate = TRUE) |>
-      stringr::str_subset("rerank", negate = TRUE)
+      stringr::str_subset("rerank", negate = TRUE) |>
       sort()
   }
   return(models)
