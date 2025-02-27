@@ -33,14 +33,31 @@ read_html_docs <- function(pkg_ref, topic_name) {
   # Convert Rd object to plain text
   rd_obj <- env[[topic_name]]
   if (inherits(rd_obj, "Rd")) {
-    con <- textConnection("txt_output", "w")
-    tools::Rd2txt(rd_obj, con, outputEncoding = "UTF-8")
-    close(con)
-    # Clean the output by removing control characters
-    cleaned_text <- paste(txt_output, collapse = "\n") |>
-      stringr::str_replace_all("_\\\\b", "") |>  # Remove "_\b" sequences
-      stringr::str_replace_all("\\\\b", "")      # Remove any remaining "\b"
-    return(cleaned_text)
+    # Extract directly from Rd object
+    get_section <- function(rd, what) {
+      pos <- which(sapply(rd, attr, "Rd_tag") == paste0("\\", what))
+      if (length(pos) == 0) return(NULL)
+      
+      # Extract and collapse text from section
+      section_content <- unlist(rd[pos])
+      if (length(section_content) == 0) return(NULL)
+      
+      # Clean up the content
+      cleaned <- paste(section_content, collapse = " ")
+      cleaned <- gsub("\\s+", " ", cleaned)
+      return(trimws(cleaned))
+    }
+    
+    # Build structured document
+    return(list(
+      title = get_section(rd_obj, "title"),
+      description = get_section(rd_obj, "description"),
+      usage = get_section(rd_obj, "usage"),
+      arguments = get_section(rd_obj, "arguments"),
+      value = get_section(rd_obj, "value"),
+      examples = get_section(rd_obj, "examples"),
+      format = get_section(rd_obj, "format")
+    ))
   } else {
     return(as.character(rd_obj))
   }
@@ -64,7 +81,12 @@ docs_get_inner_text <- function(x) {
     return(NULL)
   }
   
-  # Clean up text and normalize line endings
+  # If we already have a structured list, return it
+  if (is.list(x)) {
+    return(x)
+  }
+  
+  # Otherwise, use the previous regex approach for string input
   x <- stringr::str_replace_all(x, "\r\n", "\n")
   
   # Extract title - the first line that's not Description/Usage etc.
