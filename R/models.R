@@ -34,15 +34,20 @@ list_available_models.openai <- function(service) {
     httr2::resp_body_json() |>
     purrr::pluck("data") |>
     purrr::map_chr("id")
-
-  models <- models |>
-    stringr::str_subset("^gpt") |>
-    stringr::str_subset("instruct", negate = TRUE) |>
-    stringr::str_subset("vision", negate = TRUE) |>
-    sort()
-
-  idx <- which(models == "gpt-4o-mini")
-  models <- c(models[idx], models[-idx])
+  if (getOption("gptstudio.openai_url") == "https://api.openai.com/v1") {
+    models <- models |>
+      stringr::str_subset("^gpt") |>
+      stringr::str_subset("instruct", negate = TRUE) |>
+      stringr::str_subset("vision", negate = TRUE) |>
+      sort()
+    idx <- which(models == "gpt-4o-mini")
+    models <- c(models[idx], models[-idx])
+  } else {
+    models <- models |>
+      stringr::str_subset("instruct", negate = TRUE) |>
+      stringr::str_subset("vision", negate = TRUE) |>
+      sort()
+  }
   return(models)
 }
 
