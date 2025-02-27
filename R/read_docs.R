@@ -6,16 +6,16 @@ read_docs <- function(user_prompt) {
   }
 
   documentation <- calls |>
-    purrr::map(function(x) read_html_docs(x$pkg_ref, x$topic))
+    purrr::map(function(x) extract_rd_content(x$pkg_ref, x$topic))
 
-  inner_text <- documentation |>
-    purrr::map(docs_get_inner_text)
+  processed_content <- documentation |>
+    purrr::map(process_rd_content)
 
-  purrr::map2(calls, inner_text, ~ c(.x, list(inner_text = .y)))
+  purrr::map2(calls, processed_content, ~ c(.x, list(inner_text = .y)))
 }
 
 
-read_html_docs <- function(pkg_ref, topic_name) {
+extract_rd_content <- function(pkg_ref, topic_name) {
   # This should output a scalar character
   file_location <- utils::help(topic = (topic_name), package = (pkg_ref), help_type = "html") |>
     as.character()
@@ -30,7 +30,7 @@ read_html_docs <- function(pkg_ref, topic_name) {
     get_help_file_path() |>
     lazyLoad(envir = env)
 
-  # Convert Rd object to plain text
+  # Extract content from Rd object 
   rd_obj <- env[[topic_name]]
   if (inherits(rd_obj, "Rd")) {
     # Extract directly from Rd object
@@ -75,8 +75,7 @@ get_help_file_path <- function(file) {
   file.path(path, pkgname)
 }
 
-
-docs_get_inner_text <- function(x) {
+process_rd_content <- function(x) {
   if (is.null(x)) {
     return(NULL)
   }
